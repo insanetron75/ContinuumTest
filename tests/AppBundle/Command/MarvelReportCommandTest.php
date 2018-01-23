@@ -18,11 +18,11 @@ class MarvelReportCommandTest extends KernelTestCase
         $commandTester = new CommandTester($command);
         $commandTester->execute([
             'command' => $command->getName(),
-            'character' => 'spiderman',
+            'character' => 'spider-man',
             'dataType' => 'comics'
         ]);
 
         $output = $commandTester->getDisplay();
-        $this->assertContains('Character: spiderman', $output);
+        $this->assertContains('Character Result: Spider-Man', $output);
     }
 }
