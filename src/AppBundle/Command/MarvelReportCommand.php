@@ -8,6 +8,7 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Chadicus\Marvel\Api\Client;
+use DateTime;
 
 class MarvelReportCommand extends Command
 {
@@ -15,6 +16,8 @@ class MarvelReportCommand extends Command
     private $client;
     private $publicApiKey = '1a5f90fbac2949acd8c9751e22d9f4c9';
     private $privateApiKey = '3684cae00d9a8bc6ecb0d6fd8f60e8a1897104c9';
+
+    private $outputPath = __DIR__ . '/../../../bin/output';
 
     protected function configure()
     {
@@ -45,9 +48,8 @@ class MarvelReportCommand extends Command
             return;
         }
 
-        if ($dataType === 'comics') {
-            $comics = $this->getComics($characters[0]);
-        }
+        $comics = $this->getItems($characters[0], $dataType);
+        $this->writeCSV($comics, $characterName, $dataType);
 
         $output->writeln([
             "Character: {$input->getArgument('character')}",
@@ -73,16 +75,68 @@ class MarvelReportCommand extends Command
 
     /**
      * @param Character $character
+     * @param string    $itemType
      *
      * @return EntityInterface[]
      */
-    protected function getComics(Character $character)
+    protected function getItems(Character $character, $itemType)
     {
-        $comicWrapper = $this->client->search('comics', [
+        $comicWrapper = $this->client->search($itemType, [
             'characters' => $character->id,
             'limit'      => 40
         ]);
 
         return $comicWrapper->getData()->getResults();
+    }
+
+    /**
+     * @param EntityInterface[] $items
+     * @param string            $characterName
+     * @param string            $dataType
+     */
+    protected function writeCSV($items, $characterName, $dataType)
+    {
+        $rowArray   = [];
+        $rowArray[] = $this->buildCSVHeaders();
+        foreach ($items as $item) {
+            /** @var DateTime $date */
+            $date       = $this->getDate($item, $dataType);
+            $rowArray[] = [
+                $characterName,
+                $dataType,
+                $item->title,
+                $item->description,
+                $date->format('d/m/Y')
+            ];
+        }
+        $fileName = 'marvel_report_' . date('d_m_y') . "_$dataType.csv";
+        $csvFile  = "{$this->outputPath}/$fileName";
+        $handle   = fopen($csvFile, 'w');
+        foreach ($rowArray as $row) {
+            fputcsv($handle, $row);
+        }
+        fclose($handle);
+    }
+
+    protected function buildCSVHeaders()
+    {
+        return [
+            'Character',
+            'Data Type',
+            'Item Name',
+            'Item Description',
+            'Date Published'
+        ];
+    }
+
+    protected function getDate($item, $dataType)
+    {
+        if ($dataType === 'comics') {
+            return $item->dates[0]->date;
+        } elseif ($dataType === 'events') {
+            return $item->start;
+        }
+
+        return null;
     }
 }
