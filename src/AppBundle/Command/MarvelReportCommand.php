@@ -2,6 +2,7 @@
 namespace AppBundle\Command;
 
 use Chadicus\Marvel\Api\Entities\Character;
+use Chadicus\Marvel\Api\Entities\EntityInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -27,20 +28,11 @@ class MarvelReportCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $client        = new Client($this->privateApiKey, $this->publicApiKey);
         $characterName = $input->getArgument('character');
 
-        $dataWrapper = $client->search('characters', ['name' => $characterName]);
-
-        /** @var Character[] $characters */
-        $characters = $dataWrapper->getData()->getResults();
-
+        $characters = $this->getCharacters($characterName, 'name');
         if (!$characters) {
-            $dataWrapper = $client->search('characters', ['nameStartsWith' => $characterName]);
-
-            /** @var Character[] $characters */
-            $characters = $dataWrapper->getData()->getResults();
-
+            $characters = $this->getCharacters($characterName, 'nameStartsWith');
             $output->writeln('Multiple Character Match:');
             foreach ($characters as $thisCharacter) {
                 $output->writeln($thisCharacter->name);
@@ -55,5 +47,18 @@ class MarvelReportCommand extends Command
             "Character Result: {$characters[0]->name}"
         ]);
 
+    }
+
+    /**
+     * @param string $characterName
+     * @param string $criteria
+     *
+     * @return array|EntityInterface[]
+     */
+    protected function getCharacters($characterName, $criteria = 'name') {
+        $client        = new Client($this->privateApiKey, $this->publicApiKey);
+        $dataWrapper = $client->search('characters', [$criteria => $characterName]);
+        /** @var Character[] $characters */
+        return $dataWrapper->getData()->getResults();
     }
 }
