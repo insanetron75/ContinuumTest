@@ -55,9 +55,11 @@ class MarvelReportCommand extends Command
      *
      * @return array|EntityInterface[]
      */
-    protected function getCharacters($characterName, $criteria = 'name') {
-        $client        = new Client($this->privateApiKey, $this->publicApiKey);
+    protected function getCharacters($characterName, $criteria = 'name')
+    {
+        $client      = new Client($this->privateApiKey, $this->publicApiKey);
         $dataWrapper = $client->search('characters', [$criteria => $characterName]);
+
         /** @var Character[] $characters */
         return $dataWrapper->getData()->getResults();
     }
