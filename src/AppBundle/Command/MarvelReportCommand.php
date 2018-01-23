@@ -11,6 +11,8 @@ use Chadicus\Marvel\Api\Client;
 
 class MarvelReportCommand extends Command
 {
+    /** @var Client $client */
+    private $client;
     private $publicApiKey = '1a5f90fbac2949acd8c9751e22d9f4c9';
     private $privateApiKey = '3684cae00d9a8bc6ecb0d6fd8f60e8a1897104c9';
 
@@ -28,7 +30,9 @@ class MarvelReportCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        $this->client  = new Client($this->privateApiKey, $this->publicApiKey);
         $characterName = $input->getArgument('character');
+        $dataType      = $input->getArgument('dataType');
 
         $characters = $this->getCharacters($characterName, 'name');
         if (!$characters) {
@@ -39,6 +43,10 @@ class MarvelReportCommand extends Command
             }
 
             return;
+        }
+
+        if ($dataType === 'comics') {
+            $comics = $this->getComics($characters[0]);
         }
 
         $output->writeln([
@@ -57,10 +65,24 @@ class MarvelReportCommand extends Command
      */
     protected function getCharacters($characterName, $criteria = 'name')
     {
-        $client      = new Client($this->privateApiKey, $this->publicApiKey);
-        $dataWrapper = $client->search('characters', [$criteria => $characterName]);
+        $dataWrapper = $this->client->search('characters', [$criteria => $characterName]);
 
         /** @var Character[] $characters */
         return $dataWrapper->getData()->getResults();
+    }
+
+    /**
+     * @param Character $character
+     *
+     * @return EntityInterface[]
+     */
+    protected function getComics(Character $character)
+    {
+        $comicWrapper = $this->client->search('comics', [
+            'characters' => $character->id,
+            'limit'      => 40
+        ]);
+
+        return $comicWrapper->getData()->getResults();
     }
 }
