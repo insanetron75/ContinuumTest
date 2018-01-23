@@ -48,8 +48,13 @@ class MarvelReportCommand extends Command
             return;
         }
 
-        $items = $this->getItems($characters[0], $dataType);
-        $this->writeCSV($items, $characterName, $dataType);
+        if ($dataType === 'stories' || $dataType === 'series') {
+            $stories = $this->getItemsManually($characters[0], $dataType);
+            $this->writeStoriesCSV($stories['data']['results'], $characterName, $dataType);
+        } else {
+            $items = $this->getItems($characters[0], $dataType);
+            $this->writeCSV($items, $characterName, $dataType);
+        }
 
         $output->writeln([
             "Character: {$input->getArgument('character')}",
@@ -138,5 +143,52 @@ class MarvelReportCommand extends Command
         }
 
         return null;
+    }
+
+    /**
+     * Unfortunately stories and series don't work with this bundle so we have to do it manually...sigh
+     *
+     * @param Character $character
+     *
+     * @param string    $itemType
+     *
+     * @return array
+     */
+    protected function getItemsManually(Character $character, string $itemType)
+    {
+        $context         = stream_context_create(array('http' => array('header' => 'Accept: application/json')));
+        $baseUrl         = "http://gateway.marvel.com/v1/public/";
+        $query['apikey'] = $this->publicApiKey;
+        $query['ts']     = time();
+        $query['hash']   = md5("{$query['ts']}{$this->privateApiKey}{$this->publicApiKey}");
+        $cacheKey        = urlencode($itemType) . '?characters=' . $character->id . '&limit=40&' . http_build_query($query);
+        $url             = $baseUrl . $cacheKey;
+
+        return json_decode(file_get_contents($url, false, $context), true);
+    }
+
+    /**
+     * @param array  $items
+     * @param string $characterName
+     * @param string $dataType
+     */
+    protected function writeStoriesCSV(array $items, string $characterName, string $dataType)
+    {
+        $fileName = 'marvel_report_' . date('d_m_y') . "_$dataType.csv";
+        $csvFile  = "{$this->outputPath}/$fileName";
+        $handle   = fopen($csvFile, 'w');
+        fputcsv($handle, $this->buildCSVHeaders());
+
+        foreach ($items as $row) {
+            $rowArray = [
+                $characterName,
+                'story',
+                $row['title'],
+                $row['description'],
+                $row['modified'],
+            ];
+            fputcsv($handle, $rowArray);
+        }
+        fclose($handle);
     }
 }
