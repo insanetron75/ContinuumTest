@@ -48,8 +48,8 @@ class MarvelReportCommand extends Command
             return;
         }
 
-        $comics = $this->getItems($characters[0], $dataType);
-        $this->writeCSV($comics, $characterName, $dataType);
+        $items = $this->getItems($characters[0], $dataType);
+        $this->writeCSV($items, $characterName, $dataType);
 
         $output->writeln([
             "Character: {$input->getArgument('character')}",
