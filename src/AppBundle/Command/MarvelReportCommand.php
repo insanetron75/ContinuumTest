@@ -3,6 +3,7 @@ namespace AppBundle\Command;
 
 use Chadicus\Marvel\Api\Entities\Character;
 use Chadicus\Marvel\Api\Entities\EntityInterface;
+use Symfony\Component\Config\Definition\Exception\Exception;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -200,6 +201,9 @@ class MarvelReportCommand extends Command
      */
     public function setDataType(string $dataType)
     {
+        if ($dataType !== 'comics' && $dataType !== 'events' && $dataType !== 'series' && $dataType !== 'stories') {
+            throw new Exception("$dataType is not a valid data type");
+        }
         $this->dataType = $dataType;
     }
 
