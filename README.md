@@ -3,7 +3,7 @@ ContinuumTest
 
 A Symfony project created on January 23, 2018, 12:21 pm.
 
-Instal
+Install
 ======
 Install symfony from here:
 `https://symfony.com/doc/current/setup.html`
