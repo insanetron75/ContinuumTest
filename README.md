@@ -8,7 +8,11 @@ Instal
 Install symfony from here:
 `https://symfony.com/doc/current/setup.html`
 
-Pull Code into a new symfony project
+Install Composer
+`sudo apt-get install composer`
+`compser update`
+
+Pull Code into a new symfony project/download files and copy them to a directory on your server
 
 Usage
 ======
