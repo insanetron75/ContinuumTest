@@ -44,9 +44,13 @@ class MarvelReportCommand extends Command
         $characters = $this->getCharacters('name');
         if (!$characters) {
             $characters = $this->getCharacters('nameStartsWith');
-            $output->writeln('Multiple Character Match:');
-            foreach ($characters as $thisCharacter) {
-                $output->writeln($thisCharacter->name);
+            if (count($characters)) {
+                $output->writeln('Multiple Character Match:');
+                foreach ($characters as $thisCharacter) {
+                    $output->writeln($thisCharacter->name);
+                }
+            } else {
+                throw new Exception('No matches for character name');
             }
 
             return;
