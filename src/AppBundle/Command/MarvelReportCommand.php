@@ -19,6 +19,9 @@ class MarvelReportCommand extends Command
 
     private $outputPath = __DIR__ . '/../../../bin/output';
 
+    private $dataType;
+    private $characterName;
+
     protected function configure()
     {
         $this->setName('app:marvel-report');
@@ -34,12 +37,12 @@ class MarvelReportCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         $this->client  = new Client($this->privateApiKey, $this->publicApiKey);
-        $characterName = $input->getArgument('character');
-        $dataType      = $input->getArgument('dataType');
+        $this->setCharacterName($input->getArgument('character'));
+        $this->setDataType($input->getArgument('dataType'));
 
-        $characters = $this->getCharacters($characterName, 'name');
+        $characters = $this->getCharacters('name');
         if (!$characters) {
-            $characters = $this->getCharacters($characterName, 'nameStartsWith');
+            $characters = $this->getCharacters('nameStartsWith');
             $output->writeln('Multiple Character Match:');
             foreach ($characters as $thisCharacter) {
                 $output->writeln($thisCharacter->name);
@@ -48,12 +51,12 @@ class MarvelReportCommand extends Command
             return;
         }
 
-        if ($dataType === 'stories' || $dataType === 'series') {
-            $stories = $this->getItemsManually($characters[0], $dataType);
-            $this->writeStoriesCSV($stories['data']['results'], $characterName, $dataType);
+        if ($this->getDataType() === 'stories' || $this->getDataType() === 'series') {
+            $stories = $this->getItemsManually($characters[0]);
+            $this->writeStoriesCSV($stories['data']['results']);
         } else {
-            $items = $this->getItems($characters[0], $dataType);
-            $this->writeCSV($items, $characterName, $dataType);
+            $items = $this->getItems($characters[0]);
+            $this->writeCSV($items);
         }
 
         $output->writeln([
@@ -65,14 +68,13 @@ class MarvelReportCommand extends Command
     }
 
     /**
-     * @param string $characterName
      * @param string $criteria
      *
      * @return array|EntityInterface[]
      */
-    protected function getCharacters($characterName, $criteria = 'name')
+    protected function getCharacters($criteria = 'name')
     {
-        $dataWrapper = $this->client->search('characters', [$criteria => $characterName]);
+        $dataWrapper = $this->client->search('characters', [$criteria => $this->getCharacterName()]);
 
         /** @var Character[] $characters */
         return $dataWrapper->getData()->getResults();
@@ -80,13 +82,12 @@ class MarvelReportCommand extends Command
 
     /**
      * @param Character $character
-     * @param string    $itemType
      *
      * @return EntityInterface[]
      */
-    protected function getItems(Character $character, $itemType)
+    protected function getItems(Character $character)
     {
-        $comicWrapper = $this->client->search($itemType, [
+        $comicWrapper = $this->client->search($this->getDataType(), [
             'characters' => $character->id,
             'limit'      => 40
         ]);
@@ -96,25 +97,23 @@ class MarvelReportCommand extends Command
 
     /**
      * @param EntityInterface[] $items
-     * @param string            $characterName
-     * @param string            $dataType
      */
-    protected function writeCSV($items, $characterName, $dataType)
+    protected function writeCSV($items)
     {
         $rowArray   = [];
         $rowArray[] = $this->buildCSVHeaders();
         foreach ($items as $item) {
             /** @var DateTime $date */
-            $date       = $this->getDate($item, $dataType);
+            $date       = $this->getDate($item);
             $rowArray[] = [
-                $characterName,
-                $dataType,
+                $this->getCharacterName(),
+                $this->getDataType(),
                 $item->title,
                 $item->description,
                 $date->format('d/m/Y')
             ];
         }
-        $fileName = 'marvel_report_' . date('d_m_y') . "_$dataType.csv";
+        $fileName = 'marvel_report_' . date('d_m_y') . "_{$this->getDataType()}.csv";
         $csvFile  = "{$this->outputPath}/$fileName";
         $handle   = fopen($csvFile, 'w');
         foreach ($rowArray as $row) {
@@ -134,11 +133,11 @@ class MarvelReportCommand extends Command
         ];
     }
 
-    protected function getDate($item, $dataType)
+    protected function getDate($item)
     {
-        if ($dataType === 'comics') {
+        if ($this->getDataType() === 'comics') {
             return $item->dates[0]->date;
-        } elseif ($dataType === 'events') {
+        } elseif ($this->getDataType() === 'events') {
             return $item->start;
         }
 
@@ -150,18 +149,16 @@ class MarvelReportCommand extends Command
      *
      * @param Character $character
      *
-     * @param string    $itemType
-     *
      * @return array
      */
-    protected function getItemsManually(Character $character, string $itemType)
+    protected function getItemsManually(Character $character)
     {
         $context         = stream_context_create(array('http' => array('header' => 'Accept: application/json')));
         $baseUrl         = "http://gateway.marvel.com/v1/public/";
         $query['apikey'] = $this->publicApiKey;
         $query['ts']     = time();
         $query['hash']   = md5("{$query['ts']}{$this->privateApiKey}{$this->publicApiKey}");
-        $cacheKey        = urlencode($itemType) . '?characters=' . $character->id . '&limit=40&' . http_build_query($query);
+        $cacheKey        = urlencode($this->getDataType()) . '?characters=' . $character->id . '&limit=40&' . http_build_query($query);
         $url             = $baseUrl . $cacheKey;
 
         return json_decode(file_get_contents($url, false, $context), true);
@@ -169,19 +166,17 @@ class MarvelReportCommand extends Command
 
     /**
      * @param array  $items
-     * @param string $characterName
-     * @param string $dataType
      */
-    protected function writeStoriesCSV(array $items, string $characterName, string $dataType)
+    protected function writeStoriesCSV(array $items)
     {
-        $fileName = 'marvel_report_' . date('d_m_y') . "_$dataType.csv";
+        $fileName = 'marvel_report_' . date('d_m_y') . "_{$this->getDataType()}.csv";
         $csvFile  = "{$this->outputPath}/$fileName";
         $handle   = fopen($csvFile, 'w');
         fputcsv($handle, $this->buildCSVHeaders());
 
         foreach ($items as $row) {
             $rowArray = [
-                $characterName,
+                $this->getCharacterName(),
                 'story',
                 $row['title'],
                 $row['description'],
@@ -191,4 +186,38 @@ class MarvelReportCommand extends Command
         }
         fclose($handle);
     }
+
+    /**
+     * @return string
+     */
+    public function getDataType()
+    {
+        return $this->dataType;
+    }
+
+    /**
+     * @param string $dataType
+     */
+    public function setDataType(string $dataType)
+    {
+        $this->dataType = $dataType;
+    }
+
+    /**
+     * @return string
+     */
+    public function getCharacterName()
+    {
+        return $this->characterName;
+    }
+
+    /**
+     * @param string $characterName
+     */
+    public function setCharacterName(string $characterName)
+    {
+        $this->characterName = $characterName;
+    }
+
+
 }
