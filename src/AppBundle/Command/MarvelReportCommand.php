@@ -151,7 +151,7 @@ class MarvelReportCommand extends Command
 
     /**
      * Unfortunately stories and series don't work with this bundle so we have to do it manually...sigh
-     *
+     * GitHub Issue Raised: https://github.com/chadicus/marvel-api-client/issues/38
      * @param Character $character
      *
      * @return array
